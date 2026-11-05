@@ -94,7 +94,7 @@ button,select,input{font:inherit;color:var(--gray-900)}
 main{max-width:1180px;margin:0 auto;padding:28px 28px 56px}
 .view{display:none}.view.on{display:block}
 .hero{display:block;margin:14px 0 28px}
-.wordmark{margin:0 0 8px;font:800 clamp(34px,6vw,60px)/1.02 Inter,system-ui,sans-serif;letter-spacing:-.04em;background:linear-gradient(90deg,#fff 30%,#44f8fb);-webkit-background-clip:text;background-clip:text;color:transparent}
+.wordmark{margin:0 0 8px;font:800 clamp(28px,4.5vw,44px)/1.05 Inter,system-ui,sans-serif;letter-spacing:-.04em;background:linear-gradient(90deg,#fff 30%,#44f8fb);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero p{margin:0;color:var(--gray-500);font-size:15px;max-width:60ch}
 @media (max-width:600px){.hero{margin:6px 0 20px}}
 h2{font:700 20px/1.25 Inter,system-ui,sans-serif;letter-spacing:-.02em;margin:32px 0 4px;color:var(--gray-900)}
@@ -203,8 +203,8 @@ footer{max-width:1180px;margin:0 auto;padding:0 28px 40px;color:var(--gray-400);
       <a href="#overview">Overview</a>
       <a href="#trends">Trends</a>
       <a href="#map">Map</a>
-      <a href="#country-men">Country Men</a>
-      <a href="#city-men">City Men Matters</a>
+      <a href="#country-men">Countries</a>
+      <a href="#city-men">Cities</a>
       <a href="#civil-warriors">Civil Warriors</a>
       <a href="#days">Days</a>
       <a href="#players">Players</a>
@@ -293,12 +293,15 @@ footer{max-width:1180px;margin:0 auto;padding:0 28px 40px;color:var(--gray-400);
 
 <!-- COUNTRY MEN -->
 <section class="view" id="country-men">
-  <h2 id="cmTitle">Country Men</h2>
-  <p class="sub">The Country Man of a country is whoever has the best average there, with at least two rounds in it.</p>
+  <h2 id="cmTitle">Countries</h2>
+  <p class="sub">Scores and taps by country. A player counts as the top average in a country once they have at least two rounds there.</p>
   <div class="grid2">
-    <div class="card"><h3>Countries owned</h3><p class="sub">How many countries each player is Country Man of</p><div id="cmOwned"></div></div>
-    <div class="card"><h3>Country maxes</h3><p class="sub">Who holds the top single score in the most countries</p><div id="cmMaxes"></div></div>
+    <div class="card"><h3>Top average</h3><p class="sub">Countries where each player has the best average</p><div id="cmOwned"></div></div>
+    <div class="card"><h3>Top single score</h3><p class="sub">Countries where each player holds or shares the best score</p><div id="cmMaxes"></div></div>
   </div>
+  <h2>Taps by country and person</h2>
+  <p class="sub">Each cell is that player's average score in the country, with the number of taps beside it. Sort by any column.</p>
+  <div class="card flush"><div class="tw tall" id="cptable"></div></div>
   <h2>Min, average and max by country</h2>
   <p class="sub">The bar spans the worst to best round score; the dot is the average. Sorted hardest first.</p>
   <div class="card"><div class="tw tall" id="range"></div></div>
@@ -309,8 +312,8 @@ footer{max-width:1180px;margin:0 auto;padding:0 28px 40px;color:var(--gray-400);
 
 <!-- CITY MEN -->
 <section class="view" id="city-men">
-  <h2 id="cityTitle">City Men Matters</h2>
-  <p class="sub">A City Man is whoever posted the top score at a city. Ties count for everyone tied.</p>
+  <h2 id="cityTitle">Cities</h2>
+  <p class="sub">Top score at each city. Ties count for everyone tied.</p>
   <div class="grid2">
     <div class="card"><h3>Cities topped</h3><div id="cityKings"></div></div>
     <div class="card"><h3>Biggest splits</h3><p class="sub">Widest gap between best and worst score at one city</p><div id="splits"></div></div>
@@ -667,10 +670,18 @@ function renderCountry(){
   const C=countryRows();
   const own=d3.rollup(C.filter(c=>c.man),v=>v.length,c=>c.man.p);
   const ownL=[...own].sort((a,b)=>b[1]-a[1]);
-  $('#cmTitle').textContent=ownL[0]?`${ownL[0][0]} is Country Man of ${ownL[0][1]} countries`:'Country Men';
-  hbar('#cmOwned',ownL.map(([p,v])=>({label:p,v,color:col(p),tip:`<b>${p}</b> owns ${v}<br><span class="m">${C.filter(c=>c.man&&c.man.p===p).map(c=>c.country).join(', ')}</span>`})));
+  $('#cmTitle').textContent=ownL[0]?`Countries: ${ownL[0][0]} has the best average in ${ownL[0][1]}`:'Countries';
+  hbar('#cmOwned',ownL.map(([p,v])=>({label:p,v,color:col(p),tip:`<b>${p}</b> has the best average in ${v}<br><span class="m">${C.filter(c=>c.man&&c.man.p===p).map(c=>c.country).join(', ')}</span>`})));
   const mx=new Map();C.forEach(c=>c.maxers.forEach(p=>mx.set(p,(mx.get(p)||0)+1)));
   hbar('#cmMaxes',[...mx].sort((a,b)=>b[1]-a[1]).map(([p,v])=>({label:p,v,color:col(p),tip:`<b>${p}</b> holds or shares the top score in ${v} countries<br><span class="m">${C.filter(c=>c.maxers.includes(p)).map(c=>c.country).join(', ')}</span>`})));
+  const cp=d3.rollup(FR,v=>({avg:d3.mean(v,r=>r.score),n:v.length}),r=>r.country,r=>r.player);
+  const PL=ORDER.filter(q=>FR.some(r=>r.player===q));
+  const cell=(c,q)=>(cp.get(c.country)||new Map()).get(q);
+  table('#cptable',[
+    {h:'Country',v:c=>c.country,f:c=>`<b>${c.country}</b>`},
+    {h:'Taps',v:c=>c.n,n:1,f:c=>c.n},
+    ...PL.map(q=>({h:q,n:1,v:c=>{const o=cell(c,q);return o?o.n:0},f:c=>{const o=cell(c,q);return o?`${heat(o.avg)}<span class="who">×${o.n}</span>`:'<span class="small">·</span>'}}))
+  ],C,{sort:1});
   rangePlot(C.slice().sort((a,b)=>a.avg-b.avg));
   table('#ctable',[
     {h:'Country',v:c=>c.country,f:c=>`<b>${c.country}</b>`},
@@ -681,7 +692,7 @@ function renderCountry(){
     {h:'Average',v:c=>c.avg,n:1,f:c=>heat(c.avg)},
     {h:'Max',v:c=>c.hi.score,n:1,f:c=>`${heat(c.hi.score)}<span class="who">${c.maxers.length>2?c.maxers.length+' tied':c.maxers.join(', ')}</span>`},
     {h:'100s',v:c=>c.perf,n:1,f:c=>c.perf},
-    {h:'Country Man',v:c=>c.man?c.man.avg:null,n:1,f:c=>c.man?`${pl(c.man.p)} <span class="who">${f1(c.man.avg)} over ${c.man.n}</span>`:'<span class="small">needs 2 rounds</span>'},
+    {h:'Top average',v:c=>c.man?c.man.avg:null,n:1,f:c=>c.man?`<b>${c.man.p}</b> <span class="who">${f1(c.man.avg)} over ${c.man.n}</span>`:'<span class="small">needs 2 rounds</span>'},
     {h:'Cities',v:c=>c.cities.join(', '),wrap:1},
   ],C,{sort:5,desc:false});
 }
@@ -698,7 +709,7 @@ function rangePlot(C){
   g.append('line').attr('x1',d=>x(d.lo.score)).attr('x2',d=>x(d.hi.score)).attr('y1',rh/2).attr('y2',rh/2).attr('stroke','#1d6a7d').attr('stroke-width',6).attr('stroke-linecap','round');
   g.append('circle').attr('cx',d=>x(d.avg)).attr('cy',rh/2).attr('r',5).attr('fill','var(--leaf-900)').attr('stroke','var(--bg)').attr('stroke-width',2);
   g.append('text').attr('class','val').attr('x',w-m.r+8).attr('y',rh/2+4).text(d=>f1(d.avg));
-  tipOn(g,d=>`<b>${d.country}</b> <span class="m">${d.n} rounds</span><br>min <b>${d.lo.score}</b> ${d.lo.player}<br>average <b>${f1(d.avg)}</b><br>max <b>${d.hi.score}</b> ${d.maxers.join(', ')}${d.man?`<br>Country Man: ${d.man.p} (${f1(d.man.avg)})`:''}`);
+  tipOn(g,d=>`<b>${d.country}</b> <span class="m">${d.n} rounds</span><br>min <b>${d.lo.score}</b> ${d.lo.player}<br>average <b>${f1(d.avg)}</b><br>max <b>${d.hi.score}</b> ${d.maxers.join(', ')}${d.man?`<br>Top average: ${d.man.p} (${f1(d.man.avg)})`:''}`);
 }
 
 /* ================= CITY MEN ================= */
@@ -714,7 +725,7 @@ function renderCity(){
   const C=cityRows();
   const k=new Map();C.forEach(c=>c.kings.forEach(p=>k.set(p,(k.get(p)||0)+1)));
   const kl=[...k].sort((a,b)=>b[1]-a[1]);
-  $('#cityTitle').textContent=kl[0]?`City Men Matters: ${kl[0][0]} tops ${kl[0][1]} cities`:'City Men Matters';
+  $('#cityTitle').textContent=kl[0]?`Cities: ${kl[0][0]} has the top score in ${kl[0][1]}`:'Cities';
   hbar('#cityKings',kl.map(([p,v])=>({label:p,v,color:col(p),tip:`<b>${p}</b> topped ${v} of ${C.length} cities`})));
   const sp=C.filter(c=>c.n>=3).sort((a,b)=>b.spread-a.spread).slice(0,10);
   splitsChart(sp);
