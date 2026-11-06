@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000011">
+<title>Pinche Tapistas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2713%27 fill=%27%23000011%27 stroke=%27%2344f8fb%27 stroke-width=%273%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%274.5%27 fill=%27%2344f8fb%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--D3-->
+<!--TOPOJSON-->
+<style>
+/* Design tokens: deep-navy surfaces with a cyan accent, after maptap.gg. Neutral names (gray-50..900) are kept but now run dark to light;
+   leaf-* is the cyan accent scale. Data: categorical player slots lightened for dark backgrounds; scores on one cyan sequential ramp. */
+:root{
+  color-scheme:dark;
+  --bg:#000011;--surface:#0a1020;--surface-2:#0f1923;--on-accent:#00131a;
+  --gray-50:#0d1626;--gray-100:#121c2e;--gray-200:#1d2a40;--gray-300:#2c3b55;--gray-400:#6f7f97;--gray-500:#8c9bb2;--gray-600:#aab7cb;--gray-700:#c8d2e0;--gray-900:#f4f7fb;
+  --leaf-50:#0b2a33;--leaf-100:#0f3b47;--leaf-700:#33c7d4;--leaf-800:#33c7d4;--leaf-900:#44f8fb;
+  --sun:#44f8fb;--sun-100:rgba(68,248,251,.12);--ocean-50:#050d22;
+  --s1:#5aa2ff;--s2:#ff8a57;--s3:#2fd49a;--s4:#f5b83a;--s5:#f08fb8;--s6:#7fd45f;--s7:#a090ff;--s8:#ff6b6b;--other:#7b8798;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:radial-gradient(1100px 520px at 50% -8%,#0b1d44 0%,rgba(0,0,17,0) 65%) no-repeat,var(--bg);background-attachment:fixed;color:var(--gray-900);font:15px/1.55 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-feature-settings:"cv11","ss01"}
+a{color:var(--leaf-800)}
+:focus-visible{outline:2px solid var(--leaf-700);outline-offset:2px;border-radius:6px}
+button,select,input{font:inherit;color:var(--gray-900)}
+.n,td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---- top bar ---- */
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;gap:14px;padding:18px 14px;background:rgba(10,16,32,.7);border-right:1px solid rgba(68,248,251,.18);overflow-y:auto;z-index:30}
+.brand{display:block;flex:none;padding:2px 6px 8px;text-decoration:none}
+.brand img{display:block;width:100%;max-width:176px;height:auto;margin:0 auto}
+.tabs{display:flex;flex-direction:column;gap:2px;flex:1;min-height:0}
+.tabs a{display:block;color:var(--gray-600);text-decoration:none;padding:9px 12px;border-radius:8px;border-left:2px solid transparent;font-size:14px;font-weight:500;white-space:nowrap;transition:background-color .15s,color .15s}
+.tabs a:hover{background:var(--gray-100);color:var(--gray-900)}
+.tabs a.on{background:rgba(68,248,251,.1);color:var(--leaf-900);border-left-color:var(--leaf-900);font-weight:600}
+.side-foot{flex:none}
+.side .fbtn{width:100%;justify-content:center;border-radius:8px}
+.content{min-width:0}
+.topf{position:sticky;top:0;z-index:25;background:rgba(0,0,17,.92);backdrop-filter:saturate(1.4) blur(8px);-webkit-backdrop-filter:saturate(1.4) blur(8px)}
+@media (max-width:860px){
+  .app{display:block}
+  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 12px;border-right:0;border-bottom:1px solid rgba(68,248,251,.25);background:rgba(0,0,17,.92);backdrop-filter:saturate(1.4) blur(8px);-webkit-backdrop-filter:saturate(1.4) blur(8px);overflow:visible}
+  .brand{flex:none;padding:0}
+  .brand img{width:46px;max-width:none}
+  .tabs{flex-direction:row;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent)}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs a{flex:none;padding:7px 11px;border-left:0;border-radius:6px;font-size:13px}
+  .tabs a.on{border-left:0}
+  .side .fbtn{width:auto;border-radius:999px}
+  .topf{position:static}
+}
+.fbtn{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--gray-300);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer}
+.fbtn:hover{background:var(--gray-100)}
+.fbtn .count{background:var(--sun);color:var(--on-accent);border-radius:999px;padding:0 7px;font-size:12px;display:none}
+.fbtn.has .count{display:inline-block}
+
+/* ---- filter panel ---- */
+.fpanel{display:none;border-top:1px solid var(--gray-200);background:var(--surface)}
+.fpanel.open{display:block;border-bottom:1px solid var(--gray-200)}
+.fgrid{max-width:1180px;margin:0 auto;padding:14px 16px 16px;display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px 20px}
+.fgrid label{display:block;font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:6px}
+.fgrid input,.fgrid select{width:100%;border:1px solid var(--gray-300);border-radius:8px;padding:7px 10px;background:var(--surface)}
+.pair{display:flex;gap:8px;align-items:center}.pair span{color:var(--gray-500);font-size:13px}
+.factions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+@media (max-width:760px){.fgrid{grid-template-columns:1fr}}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--gray-300);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer;color:var(--gray-700);transition:background-color .15s}
+.chip:hover{background:var(--gray-100)}
+.chip.on{background:var(--leaf-50);border-color:var(--leaf-700);color:var(--leaf-900);font-weight:600}
+.dot{width:9px;height:9px;border-radius:3px;display:inline-block;flex:none}
+.active-f{max-width:1180px;margin:0 auto;padding:0 28px;display:flex;gap:6px;flex-wrap:wrap}
+.active-f:not(:empty){padding:10px 28px 8px}
+.af{display:inline-flex;align-items:center;gap:6px;background:var(--sun-100);border:1px solid rgba(68,248,251,.3);color:var(--gray-900);border-radius:999px;padding:3px 4px 3px 10px;font-size:13px}
+.af button{border:0;background:transparent;cursor:pointer;width:22px;height:22px;border-radius:999px;color:var(--gray-600)}
+.af button:hover{background:rgba(68,248,251,.3)}
+.btn{border:1px solid var(--gray-300);background:var(--surface);border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:500;font-size:14px}
+.btn:hover{background:var(--gray-100)}
+.btn.primary{background:var(--leaf-900);border-color:var(--leaf-900);color:var(--on-accent);font-weight:600}
+.btn.primary:hover{background:#7afbfd}
+
+/* ---- layout ---- */
+main{max-width:1180px;margin:0 auto;padding:28px 28px 56px}
+.view{display:none}.view.on{display:block}
+.hero{display:block;margin:14px 0 28px}
+.wordmark{margin:0 0 8px;font:800 clamp(28px,4.5vw,44px)/1.05 Inter,system-ui,sans-serif;letter-spacing:-.04em;background:linear-gradient(90deg,#fff 30%,#44f8fb);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin:0;color:var(--gray-500);font-size:15px;max-width:60ch}
+@media (max-width:600px){.hero{margin:6px 0 20px}}
+h2{font:700 20px/1.25 Inter,system-ui,sans-serif;letter-spacing:-.02em;margin:32px 0 4px;color:var(--gray-900)}
+h2:first-child{margin-top:0}
+h3{font-size:15px;font-weight:600;margin:0 0 2px}
+.sub{color:var(--gray-500);font-size:14px;margin:0 0 12px;max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px;box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+.card.flush{padding:0;overflow:hidden}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid2>*,.grid3>*{min-width:0}
+.card:not(.flush)>.tw{margin:0 -16px -16px}
+@media (max-width:600px){.card:not(.flush)>.tw{margin:0 -12px -12px}}
+@media (max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:520px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--surface);border:1px solid rgba(68,248,251,.2);border-radius:var(--radius);padding:12px 14px}
+.kpi .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-500)}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .v.sm{font-size:18px;line-height:1.3}
+.kpi .d{font-size:12px;color:var(--gray-500);margin-top:2px}
+.ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px}
+.ctl label{font-size:14px;color:var(--gray-600);display:flex;align-items:center;gap:6px}
+.ctl select,.ctl input{border:1px solid var(--gray-300);border-radius:8px;padding:6px 10px;background:var(--surface);max-width:100%}
+.small{font-size:12px;color:var(--gray-500)}
+.empty{padding:28px;text-align:center;color:var(--gray-500)}
+
+/* ---- tables ---- */
+.tw{overflow:auto;-webkit-overflow-scrolling:touch}
+.tw.tall{max-height:560px}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
+th,td{padding:8px 12px;border-bottom:1px solid var(--gray-100);white-space:nowrap;text-align:left;vertical-align:middle}
+th{position:sticky;top:0;z-index:2;background:var(--gray-50);color:var(--gray-600);font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;user-select:none;border-bottom:1px solid var(--gray-200)}
+th:hover{color:var(--gray-900)}
+th.on{color:var(--leaf-900)}
+th .arr{display:inline-block;width:12px;margin-left:2px;color:var(--leaf-700)}
+td:first-child,th:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
+th:first-child{z-index:3;background:var(--gray-50)}
+tbody tr:hover td{background:#0d1a2a}
+td.wrap{white-space:normal;min-width:180px}
+.pl{display:inline-flex;align-items:center;gap:7px}
+.chipv{display:inline-block;min-width:38px;padding:2px 6px;border-radius:6px;text-align:center;font-variant-numeric:tabular-nums;font-weight:600;font-size:13px}
+.who{color:var(--gray-500);font-size:12px;margin-left:4px}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--gray-100);color:var(--gray-600);margin-left:6px;vertical-align:1px}
+
+/* ---- charts ---- */
+svg text{font-family:Inter,system-ui,sans-serif;fill:var(--gray-600);font-size:12px}
+svg .lbl{fill:var(--gray-900);font-weight:500}
+svg .val{fill:var(--gray-700);font-variant-numeric:tabular-nums}
+.gridl line{stroke:var(--gray-100)}
+.axis .domain{stroke:var(--gray-300)}
+.axis line{stroke:none}
+.mark{cursor:pointer}
+.sphere{fill:var(--ocean-50);stroke:var(--gray-200)}
+.grat{fill:none;stroke:rgba(110,150,210,.14);stroke-width:.5}
+.land{fill:#16233a;stroke:#2b3d5c;stroke-width:.5}
+.mapwrap{position:relative}
+.mapbtns{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}
+.mapbtns button{width:34px;height:34px;border-radius:8px;border:1px solid var(--gray-300);background:var(--surface);font-size:18px;line-height:1;cursor:pointer}
+.mapbtns button:hover{background:var(--gray-100)}
+.legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-600);flex-wrap:wrap;margin-top:10px}
+.ramp{display:flex;border-radius:4px;overflow:hidden}.ramp i{display:block;width:22px;height:10px}
+.info{margin-top:12px;min-height:60px}
+.multis{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.multi{background:var(--surface);border:1px solid var(--gray-200);border-radius:10px;padding:10px 10px 4px}
+.multi .t{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600}
+.multi .t span:last-child{font-variant-numeric:tabular-nums;color:var(--gray-600);font-weight:500}
+
+/* ---- player cards ---- */
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.pc{background:var(--surface);border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px}
+.pc .head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.pc .head b{font:700 18px/1.1 Inter,system-ui,sans-serif;letter-spacing:-.01em}
+.pc .stat{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:5px 0;border-bottom:1px solid var(--gray-100)}
+.pc .stat span:first-child{color:var(--gray-500)}
+.pc .stat span:last-child{font-variant-numeric:tabular-nums;text-align:right}
+.pc .sec{font-size:13px;font-weight:600;color:var(--gray-700);margin:12px 0 4px}
+.versus{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.versus .vs{font:800 20px/1 Inter,sans-serif;color:var(--leaf-900)}
+.days-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.days-head select{flex:1;min-width:0;max-width:560px}
+.loc{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--gray-100)}
+.loc:last-child{border-bottom:0}
+.rn{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:999px;background:var(--leaf-900);color:var(--on-accent);font-size:12px;font-weight:700;margin-right:8px;flex:none}
+
+.tip{position:fixed;z-index:50;pointer-events:none;background:var(--surface);border:1px solid var(--gray-200);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.55);padding:10px 12px;font-size:13px;line-height:1.45;max-width:min(320px,calc(100vw - 24px));display:none}
+.tip .m{color:var(--gray-500)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--leaf-900);color:var(--on-accent);padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:60}
+footer{max-width:1180px;margin:0 auto;padding:0 28px 40px;color:var(--gray-400);font-size:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:600px){
+  .brand span{display:none}
+  main{padding:16px 12px 40px}
+  .card{padding:12px}
+  th,td{padding:7px 9px;font-size:13px}
+  h2{font-size:20px}
+}
+/*STORY_CSS*/
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <a class="brand" href="#overview" aria-label="Pinche Tapistas home"><img src="__LOGO__" alt="Pinche Tapistas"></a>
+  <nav class="tabs" id="tabs" aria-label="Views">
+      <a href="#story">Story</a>
+      <span class="navlabel">Explore</span>
+      <a href="#overview">Overview</a>
+      <a href="#trends">Trends</a>
+      <a href="#map">Map</a>
+      <a href="#country-men">Countries</a>
+      <a href="#city-men">Cities</a>
+      <a href="#civil-warriors">Civil Warriors</a>
+      <a href="#days">Days</a>
+      <a href="#players">Players</a>
+      <a href="#data">Data</a>
+    </nav>
+  <div class="side-foot"><button class="fbtn" id="fbtn" aria-expanded="false" aria-controls="fpanel">Search <span class="count" id="fcount">0</span></button></div>
+</aside>
+<div class="content">
+<div class="topf">
+  <div class="fpanel" id="fpanel">
+    <div class="fgrid">
+      <div><label>Players</label><div class="chips" id="fPlayers"></div></div>
+      <div>
+        <label for="fCountry">Country or city</label>
+        <input id="fCountry" list="countryList" placeholder="Any country or city" autocomplete="off">
+        <datalist id="countryList"></datalist>
+        <label for="fCont" style="margin-top:12px">Continent</label>
+        <select id="fCont"><option value="">Any continent</option></select>
+      </div>
+      <div>
+        <label>Dates</label>
+        <div class="pair"><select id="fFrom" aria-label="From date"></select><span>to</span><select id="fTo" aria-label="To date"></select></div>
+        <label style="margin-top:12px">Round score range</label>
+        <div class="pair"><input id="fMin" type="number" min="0" max="100" value="0" aria-label="Minimum round score"><span>to</span><input id="fMax" type="number" min="0" max="100" value="100" aria-label="Maximum round score"></div>
+      </div>
+      <div class="factions"><button class="btn" id="fClear">Clear all</button><button class="btn primary" id="fDone">Done</button></div>
+    </div>
+  </div>
+  <div class="active-f" id="activeF"></div>
+</div>
+<main>
+<!-- STORY -->
+<section class="view" id="story"></section>
+
+<!-- OVERVIEW -->
+<section class="view" id="overview">
+  <div class="hero">
+    <h1 class="wordmark">Pinche Tapistas</h1>
+    <p id="heroSub"></p>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <h2 id="lbTitle">Leaderboard</h2>
+  <p class="sub">Tap any column to sort. Final-score columns follow the player and date search; round columns also follow country, continent and score range. Players with fewer than 6 days are marked.</p>
+  <div class="card flush"><div class="tw" id="lb"></div></div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><h3 id="winsTitle">Daily wins</h3><p class="sub">Best final score of the day</p><div id="wins"></div></div>
+    <div class="card"><h3 id="showTitle">Who shows up</h3><p class="sub" id="showSub"></p><div id="played"></div></div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><h3>Hardest rounds</h3><p class="sub">Group average per round, three or more players</p><div class="tw" id="hard"></div></div>
+    <div class="card"><h3>Gimmes</h3><p class="sub">Highest group averages</p><div class="tw" id="easy"></div></div>
+  </div>
+</section>
+
+<!-- TRENDS -->
+<section class="view" id="trends">
+  <h2>Final score, day by day</h2>
+  <p class="sub">Pick players to compare. Hover or tap the chart for that day's full standings.</p>
+  <div class="chips" id="lineChips" style="margin-bottom:12px"></div>
+  <div class="card"><div id="line"></div></div>
+  <h2>Everyone against the group</h2>
+  <p class="sub">Each panel is one player's final scores on the same scale. The gray line is the group average that day.</p>
+  <div class="multis" id="multis"></div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><h3 id="roundTitle">Round 5 hurts most</h3><p class="sub">Group average by round position</p><div id="rounds"></div></div>
+    <div class="card"><h3 id="contTitle">By continent</h3><p class="sub">Group average, all rounds</p><div id="conts"></div></div>
+  </div>
+  <h2 id="dayDiffTitle">Hardest and easiest days</h2>
+  <p class="sub">Group average final score. Tap a bar to open the day.</p>
+  <div class="card"><div id="daydiff"></div></div>
+</section>
+
+<!-- MAP -->
+<section class="view" id="map">
+  <h2>Every location, scored</h2>
+  <p class="sub">Drag to pan, pinch or use the buttons to zoom. Tap a dot for the round's standings or a country for its average.</p>
+  <div class="ctl">
+    <label>Scores for <select id="mapPlayer"></select></label>
+    <label>Show <select id="mapMode"><option value="dots">City dots</option><option value="country">Country averages</option></select></label>
+  </div>
+  <div class="card" style="padding:8px">
+    <div class="mapwrap"><div id="worldmap"></div>
+      <div class="mapbtns"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Reset map" style="font-size:13px">⟲</button></div>
+    </div>
+  </div>
+  <div class="legend" id="mapLegend"></div>
+  <div class="card info" id="mapInfo"><span class="small">Tap a dot or a country to see details here.</span></div>
+</section>
+
+<!-- COUNTRY MEN -->
+<section class="view" id="country-men">
+  <h2 id="cmTitle">Countries</h2>
+  <p class="sub">Scores and taps by country. A player counts as the top average in a country once they have at least two rounds there.</p>
+  <div class="grid2">
+    <div class="card"><h3>Top average</h3><p class="sub">Countries where each player has the best average</p><div id="cmOwned"></div></div>
+    <div class="card"><h3>Top single score</h3><p class="sub">Countries where each player holds or shares the best score</p><div id="cmMaxes"></div></div>
+  </div>
+  <h2>Taps by country and person</h2>
+  <p class="sub">Each cell is that player's average score in the country, with the number of taps beside it. Sort by any column.</p>
+  <div class="card flush"><div class="tw tall" id="cptable"></div></div>
+  <h2>Min, average and max by country</h2>
+  <p class="sub">The bar spans the worst to best round score; the dot is the average. Sorted hardest first.</p>
+  <div class="card"><div class="tw tall" id="range"></div></div>
+  <h2>Every country</h2>
+  <p class="sub">Sort by any column.</p>
+  <div class="card flush"><div class="tw tall" id="ctable"></div></div>
+</section>
+
+<!-- CITY MEN -->
+<section class="view" id="city-men">
+  <h2 id="cityTitle">Cities</h2>
+  <p class="sub">Top score at each city. Ties count for everyone tied.</p>
+  <div class="grid2">
+    <div class="card"><h3>Cities topped</h3><div id="cityKings"></div></div>
+    <div class="card"><h3>Biggest splits</h3><p class="sub">Widest gap between best and worst score at one city</p><div id="splits"></div></div>
+  </div>
+  <h2>Every city</h2>
+  <p class="sub">Sort by any column.</p>
+  <div class="card flush"><div class="tw tall" id="citytable"></div></div>
+</section>
+
+<!-- CIVIL WARRIORS -->
+<section class="view" id="civil-warriors">
+  <h2>Civil Warriors</h2>
+  <p class="sub">Head to head on the days both players posted.</p>
+  <div class="ctl versus">
+    <select id="cwA" aria-label="First player"></select><span class="vs">vs</span><select id="cwB" aria-label="Second player"></select>
+    <button class="btn" id="cwSwap">Swap</button>
+  </div>
+  <div class="kpis" id="cwKpis"></div>
+  <div class="card" style="margin-top:16px"><h3 id="cwMarginTitle">Margin by day</h3><p class="sub">Bars above the line are days the first player won</p><div id="cwMargin"></div></div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><h3>By continent</h3><p class="sub">Average round score on shared days</p><div id="cwCont"></div></div>
+    <div class="card"><h3>Round by round</h3><p class="sub">Rounds won on shared days</p><div id="cwRounds"></div></div>
+  </div>
+  <h2>Every rivalry</h2>
+  <p class="sub">Wins and losses by final score on shared days. Read across a row for that player's record against each opponent.</p>
+  <div class="card flush"><div class="tw" id="rivals"></div></div>
+</section>
+
+<!-- DAYS -->
+<section class="view" id="days">
+  <div class="days-head" style="margin-bottom:16px">
+    <button class="btn" id="prevDay" aria-label="Previous day">◀</button>
+    <select id="daySel" aria-label="Day"></select>
+    <button class="btn" id="nextDay" aria-label="Next day">▶</button>
+  </div>
+  <h2 id="dayTitle"></h2>
+  <p class="sub" id="dayMeta"></p>
+  <div class="grid2">
+    <div class="card"><h3>The five</h3><div id="dayLocs"></div></div>
+    <div class="card" style="padding:8px"><div id="dayMap"></div></div>
+  </div>
+  <h2>Standings</h2>
+  <div class="card flush"><div class="tw" id="dayTable"></div></div>
+</section>
+
+<!-- PLAYERS -->
+<section class="view" id="players">
+  <h2>The roster</h2>
+  <p class="sub">Strengths, weak spots and the rounds each player would rather forget.</p>
+  <div class="ctl"><label>Sort by <select id="pSort"><option value="avg">Average final</option><option value="days">Days played</option><option value="wins">Wins</option><option value="sd">Steadiest</option></select></label></div>
+  <div class="pcards" id="pcards"></div>
+</section>
+
+<!-- DATA -->
+<section class="view" id="data">
+  <h2>All rounds</h2>
+  <p class="sub">One row per player per round. The search bar narrows this too.</p>
+  <div class="ctl">
+    <input id="q" type="search" placeholder="Type to filter rows" aria-label="Filter rows" style="flex:1;min-width:200px">
+    <button class="btn" id="copyRounds">Copy rounds CSV</button>
+    <button class="btn" id="copyScores">Copy daily scores CSV</button>
+    <span class="small" id="dcount"></span>
+  </div>
+  <div class="card flush"><div class="tw tall" id="dtable"></div></div>
+</section>
+</main>
+<footer>Scores from the group thread, Oct 7 to Nov 4, 2026. Locations from maptap.gg history pages. City coordinates are approximate.</footer>
+</div>
+</div>
+<div class="tip" id="tip" role="status"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script id="data-json" type="application/json">__DATA__</script>
+<script id="world-json" type="application/json">__WORLD__</script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const DATA=JSON.parse($('#data-json').textContent);
+const WORLD=JSON.parse($('#world-json').textContent);
+const ISO=__ISO__; // world-atlas numeric id -> iso2
+const COUNTRIES=topojson.feature(WORLD,WORLD.objects.countries);
+
+/* ---------- data prep ---------- */
+const NAME={'Kevin Lappe':'Lappe Tappe','Kevin DeCarlo':'KD','Marley':'Baby Wemby'};
+const R=DATA.rounds.map(r=>({...r,player:NAME[r.player]||r.player.split(' ')[0],round:+r.round,score:+r.score,final_score:+r.final_score,lat:+r.lat,lon:+r.lon}));
+const LOC={};DATA.locations.forEach(l=>{LOC[l.game_date+'|'+(+l.round)]={...l,round:+l.round,lat:+l.lat,lon:+l.lon}});
+const POSTS={};R.forEach(r=>{POSTS[r.game_date+'|'+r.player]=r.final_score});
+const ALLDAYS=[...new Set(R.map(r=>r.game_date))].sort();
+const daysPlayed=d3.rollup(Object.keys(POSTS),v=>v.length,k=>k.split('|')[1]);
+const ORDER=[...daysPlayed.keys()].sort((a,b)=>daysPlayed.get(b)-daysPlayed.get(a)||a.localeCompare(b));
+const SLOT=['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
+const col=p=>{const i=ORDER.indexOf(p);return i>=0&&i<8?`var(${SLOT[i]})`:'var(--other)'};
+const colHex=p=>{const i=ORDER.indexOf(p);return getComputedStyle(document.documentElement).getPropertyValue(i>=0&&i<8?SLOT[i]:'--other').trim()};
+const isGray=p=>ORDER.indexOf(p)>=8;
+const pl=p=>`<span class="pl"><span class="dot" style="background:${col(p)}"></span>${p}</span>`;
+const dL=d=>{const[y,m,dd]=d.split('-');return new Date(+y,m-1,+dd).toLocaleDateString('en-US',{month:'short',day:'numeric'})};
+const dLong=d=>{const[y,m,dd]=d.split('-');return new Date(+y,m-1,+dd).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})};
+const f1=v=>v==null||isNaN(v)?'–':(Math.round(v*10)/10).toFixed(1);
+const f0=v=>v==null||isNaN(v)?'–':Math.round(v);
+const RAMP=['#0f2430','#12333f','#154558','#185a73','#1b7090','#1f8aae','#27a7c8','#33c7d4','#44f8fb'];
+const scoreColor=s=>RAMP[Math.max(0,Math.min(8,Math.floor(s/100*8.999)))];
+const heat=s=>{if(s==null||isNaN(s))return '–';const i=Math.max(0,Math.min(8,Math.floor(s/100*8.999)));return `<span class="chipv" style="background:${RAMP[i]};color:${i>=6?'#00131a':'#d9f3f7'}">${Math.round(s)}</span>`};
+const CONTS=[...new Set(R.map(r=>r.continent))].sort();
+
+/* ---------- filters ---------- */
+const F={players:new Set(),place:'',continent:'',from:ALLDAYS[0],to:ALLDAYS.at(-1),min:0,max:100};
+let FR=[],FP={},FDAYS=[],FPL=[];
+function placeOk(r){if(!F.place)return true;const q=F.place.toLowerCase();return r.country.toLowerCase()===q||r.city.toLowerCase()===q||r.country.toLowerCase().includes(q)||r.city.toLowerCase().includes(q)}
+function applyFilters(){
+  const dOk=d=>d>=F.from&&d<=F.to, pOk=p=>!F.players.size||F.players.has(p);
+  FR=R.filter(r=>dOk(r.game_date)&&pOk(r.player)&&placeOk(r)&&(!F.continent||r.continent===F.continent)&&r.score>=F.min&&r.score<=F.max);
+  FP={};for(const k in POSTS){const[d,p]=k.split('|');if(dOk(d)&&pOk(p))FP[k]=POSTS[k]}
+  FDAYS=[...new Set(Object.keys(FP).map(k=>k.split('|')[0]))].sort();
+  FPL=ORDER.filter(p=>Object.keys(FP).some(k=>k.endsWith('|'+p)));
+}
+const playersOn=d=>FPL.filter(p=>FP[d+'|'+p]!=null);
+function stats(){
+  const S={};const groupAvg=d3.mean(Object.values(FP));
+  FPL.forEach(p=>{
+    const pd=FDAYS.filter(d=>FP[d+'|'+p]!=null),fs=pd.map(d=>FP[d+'|'+p]),pr=FR.filter(r=>r.player===p);
+    let wins=0;const ranks=[];
+    pd.forEach(d=>{const s=playersOn(d).map(q=>FP[d+'|'+q]).sort((a,b)=>b-a);const rk=s.indexOf(FP[d+'|'+p])+1;ranks.push(rk);if(rk===1)wins++});
+    const byC={};pr.forEach(r=>(byC[r.continent]=byC[r.continent]||[]).push(r.score));
+    S[p]={p,days:pd.length,avg:d3.mean(fs),best:d3.max(fs),worst:d3.min(fs),sd:fs.length>1?d3.deviation(fs):0,wins,rank:d3.mean(ranks),
+      bestDay:pd[d3.maxIndex(fs)],worstDay:pd[d3.minIndex(fs)],rounds:pr.length,avgRound:pr.length?d3.mean(pr,r=>r.score):null,
+      perfects:pr.filter(r=>r.score===100).length,busts:pr.filter(r=>r.score<50).length,
+      byC:Object.entries(byC).map(([c,v])=>({c,avg:d3.mean(v),n:v.length})).sort((a,b)=>b.avg-a.avg),
+      byRound:[1,2,3,4,5].map(i=>d3.mean(pr.filter(r=>r.round===i),r=>r.score)),
+      worstRounds:pr.slice().sort((a,b)=>a.score-b.score).slice(0,3),vsGroup:d3.mean(fs)-groupAvg};
+  });
+  return S;
+}
+
+/* ---------- tooltip ---------- */
+const tip=$('#tip');let tipTouch=false;
+function showTip(html,e){tip.innerHTML=html;tip.style.display='block';const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=Math.max(8,e.clientX-w-14);if(y+h>innerHeight-8)y=Math.max(8,e.clientY-h-14);tip.style.left=x+'px';tip.style.top=y+'px';tipTouch=e.pointerType==='touch'}
+function hideTip(){tip.style.display='none'}
+function tipOn(sel,html){sel.on('pointerenter pointermove',(e,d)=>{if(e.pointerType!=='touch')showTip(html(d),e)}).on('pointerleave',e=>{if(e.pointerType!=='touch')hideTip()}).on('pointerdown',(e,d)=>{if(e.pointerType==='touch'){showTip(html(d),e);e.stopPropagation()}})}
+document.addEventListener('pointerdown',e=>{if(tipTouch&&!e.target.closest('.mark'))hideTip()});
+addEventListener('scroll',()=>{if(tipTouch)hideTip()},{passive:true});
+const toast=t=>{const el=$('#toast');el.textContent=t;el.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display='none',1800)};
+
+/* ---------- sortable table ---------- */
+function table(el,cols,rows,opt={}){
+  el=typeof el==='string'?$(el):el;
+  if(!rows.length){el.innerHTML=`<div class="empty">Nothing matches this search. <button class="btn" onclick="clearFilters()">Clear search</button></div>`;return}
+  const st=el._st||(el._st={i:opt.sort??0,desc:opt.desc??true});if(st.i>=cols.length)st.i=0;
+  const c=cols[st.i];
+  const sorted=rows.slice().sort((a,b)=>{const va=c.v(a),vb=c.v(b);if(va==null||Number.isNaN(va))return 1;if(vb==null||Number.isNaN(vb))return -1;const r=typeof va==='string'?va.localeCompare(vb):va-vb;return st.desc?-r:r});
+  const shown=opt.limit?sorted.slice(0,opt.limit):sorted;
+  el.innerHTML=`<table><thead><tr>${cols.map((c,i)=>`<th class="${c.n?'n':''} ${i===st.i?'on':''}" tabindex="0" aria-sort="${i===st.i?(st.desc?'descending':'ascending'):'none'}">${c.h}<span class="arr">${i===st.i?(st.desc?'↓':'↑'):''}</span></th>`).join('')}</tr></thead><tbody>${shown.map(r=>`<tr>${cols.map(c=>`<td class="${c.n?'n':''} ${c.wrap?'wrap':''}">${c.f?c.f(r):(c.n?f1(c.v(r)):c.v(r))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  el.querySelectorAll('th').forEach((th,i)=>{const go=()=>{if(st.i===i)st.desc=!st.desc;else{st.i=i;st.desc=!!cols[i].n&&!cols[i].asc}table(el,cols,rows,opt)};th.onclick=go;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}}});
+}
+
+/* ---------- chart helpers ---------- */
+const W=el=>Math.max(260,el.getBoundingClientRect().width||($('main').clientWidth-40));
+function hbar(sel,items,{max,fmt=f0,unit=''}={}){
+  const el=$(sel);el.innerHTML='';if(!items.length){el.innerHTML='<div class="empty">No data for this search.</div>';return}
+  const w=W(el),rh=26,h=items.length*rh,lw=Math.min(120,w*.32);
+  const x=d3.scaleLinear().domain([0,max||d3.max(items,d=>d.v)||1]).range([0,w-lw-44]);
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%');
+  const g=svg.selectAll('g').data(items).join('g').attr('transform',(d,i)=>`translate(0,${i*rh})`);
+  g.append('text').attr('class','lbl').attr('x',lw-10).attr('y',rh/2+4).attr('text-anchor','end').text(d=>d.label);
+  tipOn(g.append('rect').attr('class','mark').attr('x',lw).attr('y',rh/2-7).attr('height',14).attr('rx',4).attr('width',d=>Math.max(2,x(d.v))).attr('fill',d=>d.color||'var(--leaf-800)'),d=>d.tip);
+  g.append('text').attr('class','val').attr('x',d=>lw+Math.max(2,x(d.v))+6).attr('y',rh/2+4).text(d=>fmt(d.v)+unit);
+}
+function vbar(sel,items,{domain,click,rotate,color}={}){
+  const el=$(sel);el.innerHTML='';if(!items.length){el.innerHTML='<div class="empty">No data for this search.</div>';return}
+  const w=W(el),h=rotate?230:210,m={t:20,r:4,b:rotate?46:24,l:34};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%');
+  const x=d3.scaleBand().domain(items.map(d=>d.key||d.label)).range([m.l,w-m.r]).paddingInner(rotate?.2:.3);
+  const y=d3.scaleLinear().domain(domain||[0,d3.max(items,d=>d.v)]).nice().range([h-m.b,m.t]);
+  svg.append('g').attr('class','gridl').selectAll('line').data(y.ticks(4)).join('line').attr('x1',m.l).attr('x2',w-m.r).attr('y1',y).attr('y2',y);
+  svg.append('g').attr('class','axis').attr('transform',`translate(${m.l-6},0)`).call(d3.axisLeft(y).ticks(4).tickSize(0)).select('.domain').remove();
+  const ax=svg.append('g').attr('class','axis').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).tickSize(0).tickFormat((k,i)=>items[i].label));
+  ax.selectAll('text').attr('dy','1.1em');
+  if(rotate){const every=Math.ceil(items.length/(w/34));ax.selectAll('text').attr('transform','rotate(-50)').attr('text-anchor','end').attr('dx','-.4em').attr('dy','.5em').style('font-size','10px').style('display',(d,i)=>i%every?'none':null)}
+  const b=svg.selectAll('rect.b').data(items).join('rect').attr('class','b mark').attr('x',d=>x(d.key||d.label)).attr('width',x.bandwidth()).attr('y',d=>y(Math.max(d.v,y.domain()[0]))).attr('height',d=>y(y.domain()[0])-y(Math.max(d.v,y.domain()[0]))).attr('rx',Math.min(4,x.bandwidth()/3)).attr('fill',d=>d.color||color||'var(--leaf-800)');
+  tipOn(b,d=>d.tip);if(click)b.on('click',(e,d)=>click(d));
+  if(!rotate)svg.selectAll('text.v').data(items).join('text').attr('class','val').attr('text-anchor','middle').attr('x',d=>x(d.key||d.label)+x.bandwidth()/2).attr('y',d=>y(d.v)-6).text(d=>f1(d.v));
+}
+
+/* ================= OVERVIEW ================= */
+function renderOverview(){
+  const S=stats(),posts=Object.entries(FP);
+  $('#heroSub').textContent=`The daily MapTap scores from the group thread: ${FDAYS.length?`${dLong(FDAYS[0]).split(', ')[1]} to ${dLong(FDAYS.at(-1)).split(', ')[1]}`:'no days in this search'}, ${FPL.length} players, ${FR.length} rounds.`;
+  const top=posts.sort((a,b)=>b[1]-a[1])[0];
+  const iron=FPL.filter(p=>S[p].days===FDAYS.length&&FDAYS.length);
+  const perf=FR.filter(r=>r.score===100).length;
+  $('#kpis').innerHTML=[
+    ['Days',FDAYS.length,FDAYS.length?`${dL(FDAYS[0])} to ${dL(FDAYS.at(-1))}`:''],
+    ['Scores posted',posts.length,`${FPL.length} players`],
+    ['Group average',f1(d3.mean(posts,d=>d[1])),'final score'],
+    ['Top score',top?top[1]:'–',top?`${top[0].split('|')[1]}, ${dL(top[0].split('|')[0])}`:''],
+    ['Perfect rounds',perf,FR.length?`${f1(100*perf/FR.length)}% of ${FR.length} rounds`:''],
+    ['Never missed',iron.length?`<span class="v sm">${iron.join(', ')}</span>`:'–',`all ${FDAYS.length} days`],
+  ].map(([k,v,d])=>`<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+  const rows=FPL.map(p=>S[p]);
+  const leader=rows.filter(s=>s.days>=6).sort((a,b)=>b.avg-a.avg)[0];
+  $('#lbTitle').textContent=leader?`${leader.p} leads with a ${f1(leader.avg)} average`:'Leaderboard';
+  table('#lb',[
+    {h:'Player',v:s=>s.p,f:s=>pl(s.p)+(s.days<6?`<span class="tag">${s.days}d</span>`:'')},
+    {h:'Days',v:s=>s.days,n:1,f:s=>s.days},
+    {h:'Avg final',v:s=>s.avg,n:1},
+    {h:'Best',v:s=>s.best,n:1,f:s=>s.best},
+    {h:'Worst',v:s=>s.worst,n:1,f:s=>s.worst},
+    {h:'Swing',v:s=>s.sd,n:1,asc:1},
+    {h:'Wins',v:s=>s.wins,n:1,f:s=>s.wins},
+    {h:'Avg finish',v:s=>s.rank,n:1,asc:1,f:s=>s.rank.toFixed(2)},
+    {h:'Avg round',v:s=>s.avgRound,n:1},
+    {h:'100s',v:s=>s.perfects,n:1,f:s=>s.perfects},
+    {h:'Busts under 50',v:s=>s.busts,n:1,f:s=>s.busts},
+  ],rows,{sort:2});
+  const w=rows.filter(s=>s.wins).sort((a,b)=>b.wins-a.wins);
+  $('#winsTitle').textContent=w[0]?`${w[0].p} has won the most days`:'Daily wins';
+  hbar('#wins',w.map(s=>({label:s.p,v:s.wins,color:col(s.p),tip:`<b>${s.p}</b><br>${s.wins} win${s.wins>1?'s':''} in ${s.days} days`})));
+  const sh=rows.slice().sort((a,b)=>b.days-a.days);
+  $('#showTitle').textContent=iron.length?`${iron.join(' and ')} never missed a day`:'Who shows up';
+  $('#showSub').textContent=`Days played out of ${FDAYS.length}`;
+  hbar('#played',sh.map(s=>({label:s.p,v:s.days,color:col(s.p),tip:`<b>${s.p}</b><br>${s.days} of ${FDAYS.length} days`})),{max:FDAYS.length});
+  const la=locAgg().filter(l=>l.n>=3);
+  const lc=[
+    {h:'Location',v:l=>l.city,f:l=>`<b>${l.city}</b>, ${l.country}`},
+    {h:'Day',v:l=>l.key,f:l=>`<a href="#days" onclick="openDay('${l.game_date}')">${dL(l.game_date)}</a> R${l.round}`},
+    {h:'Avg',v:l=>l.avg,n:1,f:l=>heat(l.avg)},
+    {h:'Low',v:l=>l.lo.score,n:1,f:l=>`${l.lo.score}<span class="who">${l.lo.player}</span>`},
+    {h:'High',v:l=>l.hi.score,n:1,f:l=>`${l.hi.score}<span class="who">${l.hi.player}</span>`},
+  ];
+  table('#hard',lc,la,{sort:2,desc:false,limit:10});
+  table('#easy',lc,la,{sort:2,desc:true,limit:10});
+}
+function locAgg(rows=FR){
+  return d3.groups(rows,r=>r.game_date+'|'+r.round).map(([k,rs])=>{const l=LOC[k];const s=rs.slice().sort((a,b)=>a.score-b.score);return {...l,key:k,rs,n:rs.length,avg:d3.mean(rs,r=>r.score),lo:s[0],hi:s.at(-1),spread:s.at(-1).score-s[0].score}});
+}
+window.openDay=d=>{curDay=d;if(location.hash!=='#days')location.hash='#days';else renderDays()};
+
+/* ================= TRENDS ================= */
+let lineSel=null;
+function renderTrends(){
+  if(!lineSel)lineSel=new Set(ORDER.slice(0,4));
+  const ch=$('#lineChips');
+  ch.innerHTML=FPL.map(p=>`<button class="chip ${lineSel.has(p)?'on':''}" data-p="${p}" aria-pressed="${lineSel.has(p)}"><span class="dot" style="background:${col(p)}"></span>${p}</button>`).join('')+`<button class="chip" data-a="all">All</button><button class="chip" data-a="none">None</button>`;
+  ch.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{if(c.dataset.a==='all')lineSel=new Set(FPL);else if(c.dataset.a==='none')lineSel=new Set();else lineSel.has(c.dataset.p)?lineSel.delete(c.dataset.p):lineSel.add(c.dataset.p);renderTrends()});
+  lineChart();multiples();
+  const ra=[1,2,3,4,5].map(i=>d3.mean(FR.filter(r=>r.round===i),r=>r.score));
+  const worstR=d3.minIndex(ra)+1;
+  $('#roundTitle').textContent=FR.length?`Round ${worstR} hurts most`:'By round';
+  vbar('#rounds',ra.map((v,i)=>({label:'Round '+(i+1),v:v||0,color:i+1===worstR?'var(--leaf-900)':'#2d7f95',tip:`<b>Round ${i+1}</b><br>average ${f1(v)}`})),{domain:[0,100]});
+  const cs=d3.rollups(FR,v=>({avg:d3.mean(v,r=>r.score),n:v.length}),r=>r.continent).sort((a,b)=>b[1].avg-a[1].avg);
+  $('#contTitle').textContent=cs.length>1?`${cs.at(-1)[0]} is the blind spot`:'By continent';
+  vbar('#conts',cs.map(([c,o],i)=>({label:c.replace('North America','N. America').replace('South America','S. America'),v:o.avg,color:i===cs.length-1?'var(--leaf-900)':'#2d7f95',tip:`<b>${c}</b><br>average ${f1(o.avg)} over ${o.n} rounds`})),{domain:[0,100]});
+  const dd=FDAYS.map(d=>({key:d,label:dL(d),v:d3.mean(playersOn(d),p=>FP[d+'|'+p]),d}));
+  const hardest=dd.slice().sort((a,b)=>a.v-b.v)[0];
+  $('#dayDiffTitle').textContent=hardest?`${dL(hardest.d)} was the hardest day`:'Days';
+  const lo=Math.max(0,Math.floor((d3.min(dd,d=>d.v)||500)/100)*100-100);
+  dd.forEach(o=>{o.color=o===hardest?'var(--leaf-900)':'#2d7f95';o.tip=`<b>${dLong(o.d)}</b><br>group average ${f1(o.v)}, ${playersOn(o.d).length} players<br><span class="m">${[1,2,3,4,5].map(i=>LOC[o.d+'|'+i].city).join(', ')}</span>`});
+  vbar('#daydiff',dd,{domain:[lo,1000],rotate:true,click:o=>openDay(o.d)});
+}
+function lineChart(){
+  const el=$('#line');el.innerHTML='';if(!FDAYS.length){el.innerHTML='<div class="empty">No days in this search.</div>';return}
+  const w=W(el),narrow=w<560,h=narrow?300:380,m={t:16,r:narrow?12:96,b:28,l:40};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%').style('touch-action','pan-y');
+  const x=d3.scalePoint().domain(FDAYS).range([m.l,w-m.r]).padding(.3);
+  const vals=Object.values(FP);const y=d3.scaleLinear().domain([Math.floor((d3.min(vals)-20)/100)*100,1000]).range([h-m.b,m.t]);
+  svg.append('g').attr('class','gridl').selectAll('line').data(y.ticks(5)).join('line').attr('x1',m.l).attr('x2',w-m.r).attr('y1',y).attr('y2',y);
+  svg.append('g').attr('class','axis').attr('transform',`translate(${m.l-6},0)`).call(d3.axisLeft(y).ticks(5).tickSize(0)).select('.domain').remove();
+  const every=Math.ceil(FDAYS.length/(narrow?5:8));
+  svg.append('g').attr('class','axis').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).tickSize(0).tickValues(FDAYS.filter((d,i)=>i%every===0)).tickFormat(dL)).selectAll('text').attr('dy','1.1em');
+  // group average reference
+  const gavg=FDAYS.map(d=>({d,v:d3.mean(playersOn(d),p=>FP[d+'|'+p])}));
+  const line=d3.line().defined(d=>d.v!=null).x(d=>x(d.d)).y(d=>y(d.v)).curve(d3.curveMonotoneX);
+  svg.append('path').datum(gavg).attr('fill','none').attr('stroke','var(--gray-300)').attr('stroke-width',2).attr('stroke-dasharray','3 4').attr('d',line);
+  const act=FPL.filter(p=>lineSel.has(p)),labels=[];
+  act.forEach(p=>{
+    const pts=FDAYS.map(d=>({d,v:FP[d+'|'+p]??null}));
+    svg.append('path').datum(pts).attr('fill','none').attr('stroke',col(p)).attr('stroke-width',2).attr('stroke-dasharray',isGray(p)?'5 3':null).attr('d',line);
+    svg.append('path').datum(pts.filter(q=>q.v!=null)).attr('fill','none').attr('stroke',col(p)).attr('stroke-width',1).attr('stroke-opacity',.25).attr('d',d3.line().x(d=>x(d.d)).y(d=>y(d.v)));
+    svg.append('g').selectAll('circle').data(pts.filter(q=>q.v!=null)).join('circle').attr('cx',q=>x(q.d)).attr('cy',q=>y(q.v)).attr('r',3.5).attr('fill',col(p)).attr('stroke','var(--bg)').attr('stroke-width',1.5);
+    const last=pts.filter(q=>q.v!=null).at(-1);if(last)labels.push({p,x:x(last.d)+8,y:y(last.v)});
+  });
+  if(!narrow&&act.length<=8){labels.sort((a,b)=>a.y-b.y);for(let i=1;i<labels.length;i++)if(labels[i].y-labels[i-1].y<14)labels[i].y=labels[i-1].y+14;
+    svg.append('g').selectAll('text').data(labels).join('text').attr('class','lbl').attr('x',d=>d.x).attr('y',d=>d.y+4).text(d=>d.p);}
+  svg.append('text').attr('x',w-m.r).attr('y',y(gavg.at(-1).v)-6).attr('text-anchor',narrow?'end':'start').attr('dx',narrow?0:8).style('fill','var(--gray-400)').text(narrow?'':'group avg');
+  const vl=svg.append('line').attr('y1',m.t).attr('y2',h-m.b).attr('stroke','var(--gray-300)').style('display','none');
+  const hit=svg.append('rect').attr('class','mark').attr('x',m.l).attr('y',m.t).attr('width',w-m.l-m.r).attr('height',h-m.t-m.b).attr('fill','transparent');
+  const at=e=>{const[mx]=d3.pointer(e,svg.node());const i=Math.round((mx-x(FDAYS[0]))/x.step());return FDAYS[Math.max(0,Math.min(FDAYS.length-1,i))]};
+  const html=d=>{const st=playersOn(d).map(p=>[p,FP[d+'|'+p]]).sort((a,b)=>b[1]-a[1]);return `<b>${dLong(d)}</b><br><span class="m">${[1,2,3,4,5].map(i=>LOC[d+'|'+i].city).join(', ')}</span><br>`+st.map(([p,v],i)=>`<span style="${lineSel.has(p)?'':'opacity:.55'}">${i+1}. <span class="dot" style="background:${col(p)}"></span> ${p} <b>${v}</b></span>`).join('<br>')};
+  hit.on('pointermove pointerdown',e=>{const d=at(e);vl.attr('x1',x(d)).attr('x2',x(d)).style('display',null);showTip(html(d),e)}).on('pointerleave',e=>{if(e.pointerType!=='touch'){vl.style('display','none');hideTip()}});
+}
+function multiples(){
+  const el=$('#multis');el.innerHTML='';if(!FDAYS.length)return;
+  const vals=Object.values(FP),y0=Math.floor((d3.min(vals)-20)/100)*100;
+  const gavg=FDAYS.map(d=>({d,v:d3.mean(playersOn(d),p=>FP[d+'|'+p])}));
+  const S=stats();
+  FPL.slice().sort((a,b)=>S[b].avg-S[a].avg).forEach(p=>{
+    const div=document.createElement('div');div.className='multi';div.innerHTML=`<div class="t"><span class="pl"><span class="dot" style="background:${col(p)}"></span>${p}</span><span>${f1(S[p].avg)}</span></div>`;el.appendChild(div);
+    const w=220,h=78,m={t:6,r:4,b:4,l:4};
+    const x=d3.scalePoint().domain(FDAYS).range([m.l,w-m.r]),y=d3.scaleLinear().domain([y0,1000]).range([h-m.b,m.t]);
+    const svg=d3.select(div).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%');
+    const ln=d3.line().defined(d=>d.v!=null).x(d=>x(d.d)).y(d=>y(d.v));
+    svg.append('path').datum(gavg).attr('fill','none').attr('stroke','var(--gray-300)').attr('stroke-width',1.5).attr('d',ln);
+    const pts=FDAYS.map(d=>({d,v:FP[d+'|'+p]??null}));
+    svg.append('path').datum(pts).attr('fill','none').attr('stroke',col(p)).attr('stroke-width',2).attr('d',ln);
+    tipOn(svg.append('g').selectAll('circle').data(pts.filter(q=>q.v!=null)).join('circle').attr('class','mark').attr('cx',q=>x(q.d)).attr('cy',q=>y(q.v)).attr('r',pts.filter(q=>q.v!=null).length<3?3:2.2).attr('fill',col(p)),q=>`<b>${p}</b>, ${dL(q.d)}<br>${q.v} <span class="m">(group ${f1(gavg.find(g=>g.d===q.d).v)})</span>`);
+  });
+}
+
+/* ================= MAP ================= */
+let mapZoom=null,mapSvg=null;
+function renderMap(){
+  const ps=$('#mapPlayer'),cur=ps.value;ps.innerHTML='<option value="">Everyone (average)</option>'+FPL.map(p=>`<option>${p}</option>`).join('');ps.value=FPL.includes(cur)?cur:'';
+  const el=$('#worldmap');el.innerHTML='';
+  const who=ps.value,mode=$('#mapMode').value,rows=who?FR.filter(r=>r.player===who):FR;
+  const w=W(el),h=Math.round(w*(w<600?.62:.52));
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%').style('display','block').style('touch-action','none').style('border-radius','8px');
+  const proj=d3.geoNaturalEarth1().fitExtent([[4,4],[w-4,h-4]],{type:'Sphere'}),path=d3.geoPath(proj);
+  const g=svg.append('g');
+  g.append('path').attr('class','sphere').attr('d',path({type:'Sphere'}));
+  g.append('path').attr('class','grat').attr('d',path(d3.geoGraticule10()));
+  const byC=d3.rollup(rows,v=>({avg:d3.mean(v,r=>r.score),n:v.length,country:v[0].country,continent:v[0].continent,lo:d3.least(v,r=>r.score),hi:d3.greatest(v,r=>r.score)}),r=>r.iso2);
+  const land=g.append('g').selectAll('path').data(COUNTRIES.features).join('path').attr('class','land').attr('d',path)
+    .style('fill',f=>{const o=mode==='country'&&byC.get(ISO[f.id]);return o?scoreColor(o.avg):null});
+  const cInfo=o=>`<b>${o.country}</b> <span class="m">${o.continent}</span><br>${who||'Group'} average <b>${f1(o.avg)}</b> over ${o.n} round${o.n>1?'s':''}<br><span class="m">low ${o.lo.score} ${o.lo.player}, high ${o.hi.score} ${o.hi.player}</span>`;
+  land.filter(f=>byC.get(ISO[f.id])).classed('mark',true).each(function(f){tipOn(d3.select(this),()=>cInfo(byC.get(ISO[f.id])))})
+    .on('click',(e,f)=>{$('#mapInfo').innerHTML=cInfo(byC.get(ISO[f.id]))});
+  const pts=locAgg(rows).sort((a,b)=>b.n-a.n);
+  const sc=Math.max(.55,Math.min(1,w/1000));const rad=d=>(mode==='dots'?(who?5:3.5+Math.sqrt(d.n)*1.1):3.2)*sc;
+  const dots=g.append('g').selectAll('circle').data(pts).join('circle').attr('class','mark')
+    .attr('cx',d=>proj([d.lon,d.lat])[0]).attr('cy',d=>proj([d.lon,d.lat])[1]).attr('r',rad)
+    .attr('fill',d=>mode==='dots'?scoreColor(d.avg):'var(--gray-900)').attr('stroke',mode==='dots'?'var(--leaf-900)':'var(--bg)').attr('stroke-width',1);
+  const dInfo=d=>`<b>${d.city}</b>, ${d.country} <span class="m">${d.region}</span><br><span class="m">${dLong(d.game_date)}, round ${d.round}: “${d.story}”</span><br>${who?`${who} scored <b>${d.rs[0].score}</b>`:`average <b>${f1(d.avg)}</b> from ${d.n} players, best ${d.hi.score} ${d.hi.player}, worst ${d.lo.score} ${d.lo.player}`}`;
+  tipOn(dots,dInfo);
+  dots.on('click',(e,d)=>{const st=d.rs.slice().sort((a,b)=>b.score-a.score);$('#mapInfo').innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div>${dInfo(d)}</div><button class="btn" onclick="openDay('${d.game_date}')">Open ${dL(d.game_date)}</button></div><div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 14px">${st.map(r=>`<span>${pl(r.player)} ${heat(r.score)}</span>`).join('')}</div>`});
+  mapZoom=d3.zoom().scaleExtent([1,20]).translateExtent([[0,0],[w,h]]).on('zoom',e=>{g.attr('transform',e.transform);const k=e.transform.k;dots.attr('r',d=>rad(d)/Math.sqrt(k)).attr('stroke-width',1/k);land.style('stroke-width',.5/k)});
+  svg.call(mapZoom).on('dblclick.zoom',null);mapSvg=svg;
+  $('#mapLegend').innerHTML=`<span>Round score</span><span>0</span><span class="ramp">${RAMP.map(c=>`<i style="background:${c}"></i>`).join('')}</span><span>100</span>`+(mode==='dots'&&!who?'<span style="margin-left:8px">Bigger dot means more players</span>':'')+(mode==='country'?'<span style="margin-left:8px">Black dots mark small countries the map can’t shade</span>':'');
+}
+$('#zin').onclick=()=>mapSvg&&mapSvg.transition().duration(200).call(mapZoom.scaleBy,1.8);
+$('#zout').onclick=()=>mapSvg&&mapSvg.transition().duration(200).call(mapZoom.scaleBy,1/1.8);
+$('#zreset').onclick=()=>mapSvg&&mapSvg.transition().duration(250).call(mapZoom.transform,d3.zoomIdentity);
+$('#mapPlayer').onchange=renderMap;$('#mapMode').onchange=renderMap;
+
+/* ================= COUNTRY MEN ================= */
+function countryRows(){
+  return d3.groups(FR,r=>r.country).map(([c,rs])=>{
+    const byP=d3.rollups(rs,v=>({avg:d3.mean(v,r=>r.score),n:v.length}),r=>r.player).filter(([p,o])=>o.n>=2).sort((a,b)=>b[1].avg-a[1].avg);
+    const s=rs.slice().sort((a,b)=>a.score-b.score),maxv=s.at(-1).score;
+    return {country:c,continent:rs[0].continent,n:rs.length,shown:new Set(rs.map(r=>r.game_date+r.round)).size,avg:d3.mean(rs,r=>r.score),lo:s[0],hi:s.at(-1),
+      maxers:[...new Set(rs.filter(r=>r.score===maxv).map(r=>r.player))],perf:rs.filter(r=>r.score===100).length,man:byP[0]?{p:byP[0][0],...byP[0][1]}:null,
+      cities:[...new Set(rs.map(r=>r.city))]};
+  });
+}
+function renderCountry(){
+  const C=countryRows();
+  const own=d3.rollup(C.filter(c=>c.man),v=>v.length,c=>c.man.p);
+  const ownL=[...own].sort((a,b)=>b[1]-a[1]);
+  $('#cmTitle').textContent=ownL[0]?`Countries: ${ownL[0][0]} has the best average in ${ownL[0][1]}`:'Countries';
+  hbar('#cmOwned',ownL.map(([p,v])=>({label:p,v,color:col(p),tip:`<b>${p}</b> has the best average in ${v}<br><span class="m">${C.filter(c=>c.man&&c.man.p===p).map(c=>c.country).join(', ')}</span>`})));
+  const mx=new Map();C.forEach(c=>c.maxers.forEach(p=>mx.set(p,(mx.get(p)||0)+1)));
+  hbar('#cmMaxes',[...mx].sort((a,b)=>b[1]-a[1]).map(([p,v])=>({label:p,v,color:col(p),tip:`<b>${p}</b> holds or shares the top score in ${v} countries<br><span class="m">${C.filter(c=>c.maxers.includes(p)).map(c=>c.country).join(', ')}</span>`})));
+  const cp=d3.rollup(FR,v=>({avg:d3.mean(v,r=>r.score),n:v.length}),r=>r.country,r=>r.player);
+  const PL=ORDER.filter(q=>FR.some(r=>r.player===q));
+  const cell=(c,q)=>(cp.get(c.country)||new Map()).get(q);
+  table('#cptable',[
+    {h:'Country',v:c=>c.country,f:c=>`<b>${c.country}</b>`},
+    {h:'Taps',v:c=>c.n,n:1,f:c=>c.n},
+    ...PL.map(q=>({h:q,n:1,v:c=>{const o=cell(c,q);return o?o.n:0},f:c=>{const o=cell(c,q);return o?`${heat(o.avg)}<span class="who">×${o.n}</span>`:'<span class="small">·</span>'}}))
+  ],C,{sort:1});
+  rangePlot(C.slice().sort((a,b)=>a.avg-b.avg));
+  table('#ctable',[
+    {h:'Country',v:c=>c.country,f:c=>`<b>${c.country}</b>`},
+    {h:'Continent',v:c=>c.continent},
+    {h:'Times shown',v:c=>c.shown,n:1,f:c=>c.shown},
+    {h:'Rounds',v:c=>c.n,n:1,f:c=>c.n},
+    {h:'Min',v:c=>c.lo.score,n:1,asc:1,f:c=>`${heat(c.lo.score)}<span class="who">${c.lo.player}</span>`},
+    {h:'Average',v:c=>c.avg,n:1,f:c=>heat(c.avg)},
+    {h:'Max',v:c=>c.hi.score,n:1,f:c=>`${heat(c.hi.score)}<span class="who">${c.maxers.length>2?c.maxers.length+' tied':c.maxers.join(', ')}</span>`},
+    {h:'100s',v:c=>c.perf,n:1,f:c=>c.perf},
+    {h:'Top average',v:c=>c.man?c.man.avg:null,n:1,f:c=>c.man?`<b>${c.man.p}</b> <span class="who">${f1(c.man.avg)} over ${c.man.n}</span>`:'<span class="small">needs 2 rounds</span>'},
+    {h:'Cities',v:c=>c.cities.join(', '),wrap:1},
+  ],C,{sort:5,desc:false});
+}
+function rangePlot(C){
+  const el=$('#range');el.innerHTML='';if(!C.length){el.innerHTML='<div class="empty">No countries in this search.</div>';return}
+  const w=W(el),rh=24,h=C.length*rh+28,lw=Math.min(150,w*.34),m={r:44};
+  const x=d3.scaleLinear().domain([0,100]).range([lw,w-m.r]);
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%');
+  svg.append('g').attr('class','gridl').selectAll('line').data([0,25,50,75,100]).join('line').attr('x1',x).attr('x2',x).attr('y1',18).attr('y2',h);
+  svg.append('g').selectAll('text').data([0,25,50,75,100]).join('text').attr('x',x).attr('y',12).attr('text-anchor','middle').text(d=>d);
+  const g=svg.selectAll('g.r').data(C).join('g').attr('class','r mark').attr('transform',(d,i)=>`translate(0,${28+i*rh})`);
+  g.append('rect').attr('x',0).attr('width',w).attr('height',rh).attr('fill','transparent');
+  g.append('text').attr('class','lbl').attr('x',lw-10).attr('y',rh/2+4).attr('text-anchor','end').text(d=>d.country.length>20?d.country.slice(0,19)+'…':d.country);
+  g.append('line').attr('x1',d=>x(d.lo.score)).attr('x2',d=>x(d.hi.score)).attr('y1',rh/2).attr('y2',rh/2).attr('stroke','#1d6a7d').attr('stroke-width',6).attr('stroke-linecap','round');
+  g.append('circle').attr('cx',d=>x(d.avg)).attr('cy',rh/2).attr('r',5).attr('fill','var(--leaf-900)').attr('stroke','var(--bg)').attr('stroke-width',2);
+  g.append('text').attr('class','val').attr('x',w-m.r+8).attr('y',rh/2+4).text(d=>f1(d.avg));
+  tipOn(g,d=>`<b>${d.country}</b> <span class="m">${d.n} rounds</span><br>min <b>${d.lo.score}</b> ${d.lo.player}<br>average <b>${f1(d.avg)}</b><br>max <b>${d.hi.score}</b> ${d.maxers.join(', ')}${d.man?`<br>Top average: ${d.man.p} (${f1(d.man.avg)})`:''}`);
+}
+
+/* ================= CITY MEN ================= */
+function cityRows(){
+  return d3.groups(FR,r=>r.city+'|'+r.country).map(([k,rs])=>{
+    const s=rs.slice().sort((a,b)=>a.score-b.score),maxv=s.at(-1).score,first=rs[0];
+    const vis=[...new Set(rs.map(r=>r.game_date+'|'+r.round))].sort();
+    return {city:first.city,region:first.region,country:first.country,continent:first.continent,visits:vis,story:vis.map(v=>LOC[v].story).join('; '),
+      n:rs.length,avg:d3.mean(rs,r=>r.score),lo:s[0],hi:s.at(-1),spread:maxv-s[0].score,kings:[...new Set(rs.filter(r=>r.score===maxv).map(r=>r.player))]};
+  });
+}
+function renderCity(){
+  const C=cityRows();
+  const k=new Map();C.forEach(c=>c.kings.forEach(p=>k.set(p,(k.get(p)||0)+1)));
+  const kl=[...k].sort((a,b)=>b[1]-a[1]);
+  $('#cityTitle').textContent=kl[0]?`Cities: ${kl[0][0]} has the top score in ${kl[0][1]}`:'Cities';
+  hbar('#cityKings',kl.map(([p,v])=>({label:p,v,color:col(p),tip:`<b>${p}</b> topped ${v} of ${C.length} cities`})));
+  const sp=C.filter(c=>c.n>=3).sort((a,b)=>b.spread-a.spread).slice(0,10);
+  splitsChart(sp);
+  table('#citytable',[
+    {h:'City',v:c=>c.city,f:c=>`<b>${c.city}</b>`},
+    {h:'Region',v:c=>c.region},
+    {h:'Country',v:c=>c.country},
+    {h:'Continent',v:c=>c.continent},
+    {h:'Day',v:c=>c.visits[0],f:c=>c.visits.map(v=>{const[d,r]=v.split('|');return `<a href="#days" onclick="openDay('${d}')">${dL(d)}</a> R${r}`}).join(', ')},
+    {h:'Players',v:c=>c.n,n:1,f:c=>c.n},
+    {h:'Low',v:c=>c.lo.score,n:1,asc:1,f:c=>`${heat(c.lo.score)}<span class="who">${c.lo.player}</span>`},
+    {h:'Average',v:c=>c.avg,n:1,f:c=>heat(c.avg)},
+    {h:'High',v:c=>c.hi.score,n:1,f:c=>`${heat(c.hi.score)}<span class="who">${c.kings.length>2?c.kings.length+' tied':c.kings.join(', ')}</span>`},
+    {h:'Spread',v:c=>c.spread,n:1,f:c=>c.spread},
+    {h:'Story',v:c=>c.story,wrap:1,f:c=>`<span class="small">${c.story}</span>`},
+  ],C,{sort:7,desc:false});
+}
+function splitsChart(items){
+  const el=$('#splits');el.innerHTML='';if(!items.length){el.innerHTML='<div class="empty">Needs cities with three or more players.</div>';return}
+  const w=W(el),rh=28,h=items.length*rh+22,lw=Math.min(130,w*.34);
+  const x=d3.scaleLinear().domain([0,100]).range([lw,w-14]);
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%');
+  svg.append('g').selectAll('text').data([0,50,100]).join('text').attr('x',x).attr('y',11).attr('text-anchor','middle').text(d=>d);
+  const g=svg.selectAll('g.r').data(items).join('g').attr('class','r mark').attr('transform',(d,i)=>`translate(0,${22+i*rh})`);
+  g.append('rect').attr('width',w).attr('height',rh).attr('fill','transparent');
+  g.append('text').attr('class','lbl').attr('x',lw-10).attr('y',rh/2+4).attr('text-anchor','end').text(d=>d.city.length>17?d.city.slice(0,16)+'…':d.city);
+  g.append('line').attr('x1',d=>x(d.lo.score)).attr('x2',d=>x(d.hi.score)).attr('y1',rh/2).attr('y2',rh/2).attr('stroke','var(--gray-200)').attr('stroke-width',2);
+  g.each(function(d){d3.select(this).selectAll('circle').data(d.rs=FR.filter(r=>r.city===d.city&&r.country===d.country)).join('circle').attr('cx',r=>x(r.score)).attr('cy',rh/2).attr('r',4.5).attr('fill',r=>col(r.player)).attr('stroke','var(--bg)').attr('stroke-width',1.5)});
+  tipOn(g,d=>`<b>${d.city}</b>, ${d.country}<br>spread ${d.spread}<br>`+d.rs.slice().sort((a,b)=>b.score-a.score).map(r=>`<span class="dot" style="background:${col(r.player)}"></span> ${r.player} <b>${r.score}</b>`).join('<br>'));
+}
+
+/* ================= CIVIL WARRIORS ================= */
+function h2h(a,b){const sh=FDAYS.filter(d=>FP[d+'|'+a]!=null&&FP[d+'|'+b]!=null);let w=0,l=0,t=0;sh.forEach(d=>{const m=FP[d+'|'+a]-FP[d+'|'+b];m>0?w++:m<0?l++:t++});return {sh,w,l,t}}
+function renderCivil(){
+  const A=$('#cwA'),B=$('#cwB'),ca=A.value,cb=B.value;
+  const opts=FPL.map(p=>`<option>${p}</option>`).join('');A.innerHTML=opts;B.innerHTML=opts;
+  A.value=FPL.includes(ca)?ca:FPL[0];B.value=FPL.includes(cb)&&cb!==A.value?cb:FPL.find(p=>p!==A.value);
+  const a=A.value,b=B.value;if(!a||!b){$('#cwKpis').innerHTML='<div class="empty">Pick two players.</div>';return}
+  const r=h2h(a,b);
+  const margins=r.sh.map(d=>({d,m:FP[d+'|'+a]-FP[d+'|'+b],a:FP[d+'|'+a],b:FP[d+'|'+b]}));
+  const shR=FR.filter(x=>r.sh.includes(x.game_date)&&(x.player===a||x.player===b));
+  let ra=0,rb=0,rt=0;d3.groups(shR,x=>x.game_date+'|'+x.round).forEach(([k,v])=>{const sa=v.find(x=>x.player===a),sb=v.find(x=>x.player===b);if(!sa||!sb)return;sa.score>sb.score?ra++:sa.score<sb.score?rb++:rt++});
+  const big=margins.slice().sort((x,y)=>Math.abs(y.m)-Math.abs(x.m))[0];
+  $('#cwKpis').innerHTML=[
+    ['Shared days',r.sh.length,''],
+    [`${a} wins`,r.w,r.sh.length?`${f0(100*r.w/r.sh.length)}% of shared days`:''],
+    [`${b} wins`,r.l,r.t?`${r.t} tied`:''],
+    ['Average margin',r.sh.length?(d3.mean(margins,x=>x.m)>0?'+':'')+f1(d3.mean(margins,x=>x.m)):'–',`for ${a}`],
+    ['Rounds won',`${ra}–${rb}`,`${a} first${rt?`, ${rt} tied`:''}`],
+    ['Biggest beatdown',big?Math.abs(big.m):'–',big?`${big.m>0?a:b}, ${dL(big.d)}`:''],
+  ].map(([k,v,d])=>`<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+  $('#cwMarginTitle').textContent=r.sh.length?(r.w>r.l?`${a} leads the series ${r.w}–${r.l}`:r.l>r.w?`${b} leads the series ${r.l}–${r.w}`:`Dead even at ${r.w}–${r.l}`):'No shared days yet';
+  // margin chart
+  const el=$('#cwMargin');el.innerHTML='';
+  if(margins.length){
+    const w=W(el),h=240,m={t:22,r:8,b:26,l:40};const mx=d3.max(margins,x=>Math.abs(x.m))||10;
+    const x=d3.scaleBand().domain(margins.map(x=>x.d)).range([m.l,w-m.r]).paddingInner(.25),y=d3.scaleLinear().domain([-mx,mx]).nice().range([h-m.b,m.t]);
+    const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%');
+    svg.append('g').attr('class','gridl').selectAll('line').data(y.ticks(4)).join('line').attr('x1',m.l).attr('x2',w-m.r).attr('y1',y).attr('y2',y);
+    svg.append('g').attr('class','axis').attr('transform',`translate(${m.l-6},0)`).call(d3.axisLeft(y).ticks(4).tickSize(0).tickFormat(d=>d>0?'+'+d:d)).select('.domain').remove();
+    svg.append('line').attr('x1',m.l).attr('x2',w-m.r).attr('y1',y(0)).attr('y2',y(0)).attr('stroke','var(--gray-400)');
+    svg.append('text').attr('x',m.l+4).attr('y',m.t-8).attr('class','lbl').text(`${a} ahead`);
+    svg.append('text').attr('x',m.l+4).attr('y',h-6).attr('class','lbl').text(`${b} ahead`);
+    tipOn(svg.selectAll('rect.b').data(margins).join('rect').attr('class','b mark').attr('x',d=>x(d.d)).attr('width',x.bandwidth()).attr('y',d=>y(Math.max(0,d.m))).attr('height',d=>Math.max(1,Math.abs(y(d.m)-y(0)))).attr('rx',Math.min(3,x.bandwidth()/3)).attr('fill',d=>d.m>=0?col(a):col(b)),
+      d=>`<b>${dLong(d.d)}</b><br>${a} ${d.a}<br>${b} ${d.b}<br>margin ${d.m>0?'+':''}${d.m}`);
+  }else el.innerHTML='<div class="empty">These two have never posted on the same day in this search.</div>';
+  // continent pairs
+  const conts=d3.groups(shR,x=>x.continent).map(([c,v])=>({c,a:d3.mean(v.filter(x=>x.player===a),x=>x.score),b:d3.mean(v.filter(x=>x.player===b),x=>x.score),n:v.length/2})).sort((x,y)=>(y.a-y.b)-(x.a-x.b));
+  pairBars('#cwCont',conts.map(o=>({label:o.c,a:o.a,b:o.b,tip:`<b>${o.c}</b><br>${a} ${f1(o.a)}<br>${b} ${f1(o.b)}`})),a,b);
+  const byRound=[1,2,3,4,5].map(i=>{const v=shR.filter(x=>x.round===i);return {label:'Round '+i,a:d3.mean(v.filter(x=>x.player===a),x=>x.score),b:d3.mean(v.filter(x=>x.player===b),x=>x.score)}});
+  pairBars('#cwRounds',byRound.map(o=>({...o,tip:`<b>${o.label}</b><br>${a} ${f1(o.a)}<br>${b} ${f1(o.b)}`})),a,b);
+  // rivalry matrix
+  const rows=FPL.map(p=>{const o={p};let tw=0,tl=0;FPL.forEach(q=>{if(q===p)return;const x=h2h(p,q);o[q]=x;tw+=x.w;tl+=x.l});o.tw=tw;o.tl=tl;return o});
+  table('#rivals',[{h:'Player',v:o=>o.p,f:o=>pl(o.p)},{h:'Total',v:o=>o.tw-o.tl,n:1,f:o=>`<b>${o.tw}–${o.tl}</b>`}].concat(FPL.map(q=>({h:q,n:1,v:o=>o.p===q||!o[q].sh.length?null:o[q].w-o[q].l,
+    f:o=>{if(o.p===q)return '<span class="small">—</span>';const x=o[q];if(!x.sh.length)return '<span class="small">·</span>';const c=x.w>x.l?'var(--leaf-800)':x.w<x.l?'#ff6b6b':'var(--gray-600)';return `<span style="color:${c};font-weight:600">${x.w}–${x.l}</span>`}}))),rows,{sort:1});
+}
+function pairBars(sel,items,a,b){
+  const el=$(sel);el.innerHTML='';items=items.filter(o=>o.a!=null&&o.b!=null);if(!items.length){el.innerHTML='<div class="empty">No shared rounds.</div>';return}
+  const w=W(el),rh=34,h=items.length*rh+20,lw=Math.min(110,w*.3);
+  const x=d3.scaleLinear().domain([0,100]).range([lw,w-40]);
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%');
+  const lg=svg.append('g');[[a,0],[b,1]].forEach(([p,i])=>{lg.append('rect').attr('x',lw+i*120).attr('y',2).attr('width',10).attr('height',10).attr('rx',3).attr('fill',col(p));lg.append('text').attr('x',lw+i*120+15).attr('y',11).text(p)});
+  const g=svg.selectAll('g.r').data(items).join('g').attr('class','r mark').attr('transform',(d,i)=>`translate(0,${20+i*rh})`);
+  g.append('rect').attr('width',w).attr('height',rh).attr('fill','transparent');
+  g.append('text').attr('class','lbl').attr('x',lw-10).attr('y',rh/2+4).attr('text-anchor','end').text(d=>d.label.replace('North America','N. America').replace('South America','S. America'));
+  g.append('rect').attr('x',lw).attr('y',rh/2-11).attr('height',9).attr('rx',3).attr('width',d=>x(d.a)-lw).attr('fill',col(a));
+  g.append('rect').attr('x',lw).attr('y',rh/2+2).attr('height',9).attr('rx',3).attr('width',d=>x(d.b)-lw).attr('fill',col(b));
+  g.append('text').attr('class','val').attr('x',d=>x(d.a)+5).attr('y',rh/2-3).style('font-size','11px').text(d=>f1(d.a));
+  g.append('text').attr('class','val').attr('x',d=>x(d.b)+5).attr('y',rh/2+10).style('font-size','11px').text(d=>f1(d.b));
+  tipOn(g,d=>d.tip);
+}
+$('#cwA').onchange=renderCivil;$('#cwB').onchange=renderCivil;
+$('#cwSwap').onclick=()=>{const a=$('#cwA').value;$('#cwA').value=$('#cwB').value;$('#cwB').value=a;renderCivil()};
+
+/* ================= DAYS ================= */
+let curDay=null;
+function renderDays(){
+  const s=$('#daySel');
+  s.innerHTML=FDAYS.map(d=>`<option value="${d}">${dL(d)}: ${[1,2,3,4,5].map(i=>LOC[d+'|'+i].city).join(', ')}</option>`).join('');
+  if(!FDAYS.length){$('#dayTitle').textContent='No days in this search';['#dayMeta','#dayLocs','#dayMap','#dayTable'].forEach(x=>$(x).innerHTML='');return}
+  if(!FDAYS.includes(curDay))curDay=FDAYS.at(-1);s.value=curDay;
+  const d=curDay,ps=playersOn(d).sort((a,b)=>FP[d+'|'+b]-FP[d+'|'+a]);
+  $('#dayTitle').textContent=dLong(d);
+  $('#dayMeta').textContent=ps.length?`${ps.length} players. ${ps[0]} won with ${FP[d+'|'+ps[0]]}; group average ${f1(d3.mean(ps,p=>FP[d+'|'+p]))}.`:'';
+  const dayR=R.filter(r=>r.game_date===d&&ps.includes(r.player));
+  $('#dayLocs').innerHTML=[1,2,3,4,5].map(i=>{const l=LOC[d+'|'+i],rs=dayR.filter(r=>r.round===i);return `<div class="loc"><div style="display:flex;align-items:flex-start"><span class="rn">${i}</span><div><b>${l.city}</b>, ${l.country}<div class="small">${l.region}, ${l.continent}. “${l.story}”</div></div></div><div>${heat(d3.mean(rs,r=>r.score))}</div></div>`}).join('');
+  // mini map
+  const el=$('#dayMap');el.innerHTML='';const w=W(el),h=Math.round(w*.55);
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`).attr('width','100%').style('display','block');
+  const proj=d3.geoNaturalEarth1().fitExtent([[4,4],[w-4,h-4]],{type:'Sphere'}),path=d3.geoPath(proj);
+  svg.append('path').attr('class','sphere').attr('d',path({type:'Sphere'}));
+  svg.append('g').selectAll('path').data(COUNTRIES.features).join('path').attr('class','land').attr('d',path);
+  const L=[1,2,3,4,5].map(i=>LOC[d+'|'+i]);
+  const pg=svg.selectAll('g.pin').data(L).join('g').attr('class','pin mark').attr('transform',l=>`translate(${proj([l.lon,l.lat])})`);
+  pg.append('circle').attr('r',10).attr('fill','var(--leaf-900)').attr('stroke','var(--bg)').attr('stroke-width',2);
+  pg.append('text').attr('text-anchor','middle').attr('dy','.35em').style('font-size','11px').style('font-weight','700').style('fill','var(--on-accent)').text(l=>l.round);
+  tipOn(pg,l=>`<b>${l.round}. ${l.city}</b>, ${l.country}<br>average ${f1(d3.mean(dayR.filter(r=>r.round===l.round),r=>r.score))}`);
+  table('#dayTable',[
+    {h:'Finish',v:p=>ps.indexOf(p)+1,n:1,asc:1,f:p=>ps.indexOf(p)+1},
+    {h:'Player',v:p=>p,f:pl},
+    ...[1,2,3,4,5].map(i=>({h:LOC[d+'|'+i].city,n:1,v:p=>(dayR.find(r=>r.player===p&&r.round===i)||{}).score,f:p=>heat((dayR.find(r=>r.player===p&&r.round===i)||{}).score)})),
+    {h:'Round total',v:p=>d3.sum(dayR.filter(r=>r.player===p),r=>r.score),n:1,f:p=>d3.sum(dayR.filter(r=>r.player===p),r=>r.score)},
+    {h:'Final',v:p=>FP[d+'|'+p],n:1,f:p=>`<b>${FP[d+'|'+p]}</b>`},
+  ],ps,{sort:0,desc:false});
+}
+$('#daySel').onchange=e=>{curDay=e.target.value;renderDays()};
+$('#prevDay').onclick=()=>{const i=FDAYS.indexOf(curDay);if(i>0){curDay=FDAYS[i-1];renderDays()}};
+$('#nextDay').onclick=()=>{const i=FDAYS.indexOf(curDay);if(i<FDAYS.length-1){curDay=FDAYS[i+1];renderDays()}};
+
+/* ================= PLAYERS ================= */
+function renderPlayers(){
+  const S=stats(),k=$('#pSort').value;
+  const list=FPL.map(p=>S[p]).sort((a,b)=>k==='sd'?a.sd-b.sd:k==='days'?b.days-a.days:k==='wins'?b.wins-a.wins:b.avg-a.avg);
+  if(!list.length){$('#pcards').innerHTML='<div class="empty">No players in this search.</div>';return}
+  $('#pcards').innerHTML=list.map(s=>{
+    const tag=s.days<6?`${s.days} days`:s.sd<55?'steady':s.sd>100?'boom or bust':'';
+    const br=s.byRound,bi=d3.maxIndex(br),wi=d3.minIndex(br);
+    const cs=s.byC.filter(c=>c.n>=3);
+    const bars=cs.map(c=>`<div style="display:grid;grid-template-columns:96px 1fr 34px;gap:8px;align-items:center;font-size:12px;padding:2px 0"><span style="color:var(--gray-600)">${c.c.replace('North America','N. America').replace('South America','S. America')}</span><span style="background:var(--gray-100);border-radius:4px;height:8px;overflow:hidden"><span style="display:block;height:100%;width:${c.avg}%;background:${col(s.p)};border-radius:4px"></span></span><span class="n">${f1(c.avg)}</span></div>`).join('');
+    return `<div class="pc"><div class="head"><span class="dot" style="background:${col(s.p)};width:12px;height:12px"></span><b>${s.p}</b>${tag?`<span class="tag">${tag}</span>`:''}</div>
+    <div class="stat"><span>Average final</span><span><b>${f1(s.avg)}</b> <span class="small">${s.vsGroup>=0?'+':''}${f1(s.vsGroup)} vs group</span></span></div>
+    <div class="stat"><span>Best day</span><span>${s.best} <span class="small">${dL(s.bestDay)}</span></span></div>
+    <div class="stat"><span>Worst day</span><span>${s.worst} <span class="small">${dL(s.worstDay)}</span></span></div>
+    <div class="stat"><span>Wins, average finish</span><span>${s.wins}, ${s.rank.toFixed(1)}</span></div>
+    <div class="stat"><span>Perfect rounds, busts</span><span>${s.perfects}, ${s.busts}</span></div>
+    ${s.rounds?`<div class="stat"><span>Best and worst round slot</span><span>R${bi+1} ${f1(br[bi])}, R${wi+1} ${f1(br[wi])}</span></div>`:''}
+    ${bars?`<div class="sec">By continent</div>${bars}`:''}
+    ${s.worstRounds.length?`<div class="sec">Rounds to forget</div>`+s.worstRounds.map(r=>`<div class="stat"><span>${r.city}, ${r.country} <span class="small">${dL(r.game_date)}</span></span><span>${heat(r.score)}</span></div>`).join(''):''}
+    </div>`}).join('');
+}
+$('#pSort').onchange=renderPlayers;
+
+/* ================= DATA ================= */
+const DCOLS=['game_date','player','round','score','city','region','country','continent','story','final_score'];
+function renderData(){
+  const q=$('#q').value.trim().toLowerCase();
+  const rows=FR.filter(r=>!q||DCOLS.some(c=>String(r[c]).toLowerCase().includes(q)));
+  $('#dcount').textContent=`${rows.length} rows`;
+  table('#dtable',[
+    {h:'Date',v:r=>r.game_date,f:r=>dL(r.game_date)},{h:'Player',v:r=>r.player,f:r=>pl(r.player)},{h:'Round',v:r=>r.round,n:1,f:r=>r.round},
+    {h:'Score',v:r=>r.score,n:1,f:r=>heat(r.score)},{h:'City',v:r=>r.city},{h:'Region',v:r=>r.region},{h:'Country',v:r=>r.country},{h:'Continent',v:r=>r.continent},
+    {h:'Final',v:r=>r.final_score,n:1,f:r=>r.final_score},{h:'Story',v:r=>r.story,wrap:1,f:r=>`<span class="small">${r.story}</span>`},
+  ],rows,{sort:0});
+}
+let qt;$('#q').oninput=()=>{clearTimeout(qt);qt=setTimeout(renderData,120)};
+const esc=v=>/[",\n]/.test(String(v))?'"'+String(v).replace(/"/g,'""')+'"':v;
+const copy=(t,l)=>{if(!navigator.clipboard){toast('Copy is not available here');return}navigator.clipboard.writeText(t).then(()=>toast(l+' copied')).catch(()=>toast('Copy was blocked by the browser'))};
+$('#copyRounds').onclick=()=>copy([DCOLS.join(',')].concat(FR.map(r=>DCOLS.map(c=>esc(r[c])).join(','))).join('\n'),'Rounds CSV');
+$('#copyScores').onclick=()=>copy(['date,player,final,r1,r2,r3,r4,r5'].concat(Object.keys(FP).sort().map(k=>{const[d,p]=k.split('|');return [d,p,FP[k],...[1,2,3,4,5].map(i=>(R.find(r=>r.game_date===d&&r.player===p&&r.round===i)||{}).score)].join(',')})).join('\n'),'Daily scores CSV');
+
+/* ================= search panel ================= */
+function buildFilterUI(){
+  $('#fPlayers').innerHTML=ORDER.map(p=>`<button class="chip" data-p="${p}" aria-pressed="false"><span class="dot" style="background:${col(p)}"></span>${p}</button>`).join('');
+  $('#fPlayers').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{const p=c.dataset.p;F.players.has(p)?F.players.delete(p):F.players.add(p);changed()});
+  const places=[...new Set(R.map(r=>r.country))].sort().concat([...new Set(R.map(r=>r.city))].sort());
+  $('#countryList').innerHTML=places.map(c=>`<option value="${c}">`).join('');
+  $('#fCont').innerHTML='<option value="">Any continent</option>'+CONTS.map(c=>`<option>${c}</option>`).join('');
+  const dopts=ALLDAYS.map(d=>`<option value="${d}">${dL(d)}</option>`).join('');$('#fFrom').innerHTML=dopts;$('#fTo').innerHTML=dopts;
+  let ct;$('#fCountry').oninput=e=>{clearTimeout(ct);ct=setTimeout(()=>{F.place=e.target.value.trim();changed()},200)};
+  $('#fCont').onchange=e=>{F.continent=e.target.value;changed()};
+  $('#fFrom').onchange=e=>{F.from=e.target.value;if(F.to<F.from)F.to=F.from;changed()};
+  $('#fTo').onchange=e=>{F.to=e.target.value;if(F.from>F.to)F.from=F.to;changed()};
+  $('#fMin').onchange=e=>{F.min=Math.max(0,Math.min(100,+e.target.value||0));changed()};
+  $('#fMax').onchange=e=>{F.max=Math.max(0,Math.min(100,e.target.value===''?100:+e.target.value));changed()};
+  $('#fClear').onclick=clearFilters;
+  $('#fDone').onclick=()=>togglePanel(false);
+  $('#fbtn').onclick=()=>togglePanel(!$('#fpanel').classList.contains('open'));
+}
+function togglePanel(open){$('#fpanel').classList.toggle('open',open);$('#fbtn').setAttribute('aria-expanded',open)}
+window.clearFilters=()=>{F.players.clear();F.place='';F.continent='';F.from=ALLDAYS[0];F.to=ALLDAYS.at(-1);F.min=0;F.max=100;changed()};
+function syncFilterUI(){
+  $('#fPlayers').querySelectorAll('.chip').forEach(c=>{const on=F.players.has(c.dataset.p);c.classList.toggle('on',on);c.setAttribute('aria-pressed',on)});
+  if(document.activeElement!==$('#fCountry'))$('#fCountry').value=F.place;
+  $('#fCont').value=F.continent;$('#fFrom').value=F.from;$('#fTo').value=F.to;$('#fMin').value=F.min;$('#fMax').value=F.max;
+  const act=[];
+  if(F.players.size)act.push(['players',[...F.players].join(', ')]);
+  if(F.place)act.push(['place',F.place]);
+  if(F.continent)act.push(['continent',F.continent]);
+  if(F.from!==ALLDAYS[0]||F.to!==ALLDAYS.at(-1))act.push(['dates',`${dL(F.from)} to ${dL(F.to)}`]);
+  if(F.min>0||F.max<100)act.push(['score',`Round scores ${F.min} to ${F.max}`]);
+  $('#activeF').innerHTML=act.map(([k,t])=>`<span class="af">${t}<button aria-label="Remove ${t}" data-k="${k}">✕</button></span>`).join('')+(act.length>1?`<button class="btn" style="padding:3px 10px;font-size:13px" onclick="clearFilters()">Clear all</button>`:'');
+  $('#activeF').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==='players')F.players.clear();if(k==='place')F.place='';if(k==='continent')F.continent='';if(k==='dates'){F.from=ALLDAYS[0];F.to=ALLDAYS.at(-1)}if(k==='score'){F.min=0;F.max=100}changed()});
+  $('#fcount').textContent=act.length;$('#fbtn').classList.toggle('has',act.length>0);
+}
+function changed(){applyFilters();syncFilterUI();render()}
+
+/*STORY_JS*/
+
+/* ================= routing ================= */
+const VIEWS={story:renderStory,overview:renderOverview,trends:renderTrends,map:renderMap,'country-men':renderCountry,'city-men':renderCity,'civil-warriors':renderCivil,days:renderDays,players:renderPlayers,data:renderData};
+function view(){const h=location.hash.slice(1);return VIEWS[h]?h:'story'}
+function render(){
+  const v=view();
+  document.body.dataset.view=v;
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id===v));
+  document.querySelectorAll('#tabs a').forEach(a=>{const on=a.getAttribute('href')==='#'+v;a.classList.toggle('on',on);if(on){a.setAttribute('aria-current','page');a.scrollIntoView({block:'nearest',inline:'nearest'})}else a.removeAttribute('aria-current')});
+  hideTip();
+  try{VIEWS[v]()}catch(err){console.error(err);$('#'+v).insertAdjacentHTML('beforeend',`<div class="empty">This view hit an error: ${err.message}</div>`)}
+}
+addEventListener('hashchange',()=>{scrollTo(0,0);render()});
+let lastW=innerWidth,rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(Math.abs(innerWidth-lastW)>30){lastW=innerWidth;render()}},180)});
+
+buildFilterUI();applyFilters();syncFilterUI();render();
+</script>
+</body>
+</html>
